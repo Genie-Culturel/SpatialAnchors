@@ -82,21 +82,39 @@ https://raw.githubusercontent.com/Genie-Culturel/SpatialAnchors/main/anchors.jso
 
 ---
 
-## 3. Quelle salle charger ? (`AnchorRoomKey`)
+## 3. Deux questions distinctes (ne pas confondre)
 
-Chaque casque indique **quelle entrée** lire dans `anchors.json`.
+Le système répond à **deux questions différentes** :
+
+| Question | Champ concerné | Quand |
+|----------|----------------|-------|
+| **Quelle salle ?** (nom de la clé JSON) | `AnchorRoomKey` | Avant le fetch GitHub |
+| **Quel UUID ?** (identifiant Meta) | `AnchorUuid` + cascade | Si GitHub/Meta échoue |
+
+> ⚠️ **`AnchorRoomKey` invalide ≠ passage immédiat au legacy UUID.**  
+> Si la clé est absente ou invalide, le jeu choisit un **nom de salle de secours** (Inspector → `RoomB`), puis **tente quand même GitHub** avec ce nom.  
+> Le legacy `AnchorUuid` du GM n'intervient qu'**après un échec du fetch GitHub** (voir §4).
+
+### 3.1 — Quelle salle charger ? (`AnchorRoomKey`)
+
+Étape **A** : choisir le **nom de la clé** dans `anchors.json`.
 
 ```mermaid
 flowchart TD
-    START["Démarrage du jeu"] --> LS{"clientLocalSettings.json\ncontient AnchorRoomKey ?"}
-    LS -->|Oui, clé valide| USE["Utiliser cette clé\n(ex: RoomA, RoomDev)"]
-    LS -->|Non ou invalide| FB["Fallback Inspector\n(compilé dans le build)"]
-    FB --> DEF["Défaut : RoomB"]
-    USE --> GH["Fetch UUID dans anchors.json\npour cette clé"]
+    START["Étape A — Choisir la clé JSON"] --> LS{"AnchorRoomKey\nvalide dans\nclientLocalSettings ?"}
+    LS -->|Oui| USE["Clé = AnchorRoomKey\n(ex: RoomA, RoomDev)"]
+    LS -->|Non ou invalide| FB["Nom de salle fallback\n(Inspector Unity :\nfallbackRoomKeyIfJsonMissing)"]
+    FB --> DEF["Défaut dur : RoomB"]
+    USE --> GH["→ Étape B : fetch GitHub\navec ce nom de clé"]
     DEF --> GH
+
+    style GH fill:#e8f5e9
 ```
 
-### Exemple `clientLocalSettings.json` (sur le Quest)
+> Ce schéma ne concerne **que le nom de la salle**, pas l'UUID.  
+> `AnchorUuid` (legacy GM) n'est **pas** lu à cette étape.
+
+### 3.2 — Exemple `clientLocalSettings.json` (sur le Quest)
 
 ```json
 {
@@ -105,10 +123,40 @@ flowchart TD
 }
 ```
 
-| Champ | Rôle |
-|-------|------|
-| `AnchorRoomKey` | **Quelle salle** → clé dans `anchors.json` |
-| `AnchorUuid` | UUID de secours (legacy) — mis à jour après un bind réussi |
+| Champ | Rôle | Utilisé quand |
+|-------|------|---------------|
+| `AnchorRoomKey` | **Nom** de la salle → clé dans `anchors.json` | Étape A (toujours en premier) |
+| `AnchorUuid` | **UUID** de secours (legacy GM) | Étape B — seulement si GitHub fetch échoue |
+
+### 3.3 — Schéma complet (étapes A + B)
+
+```mermaid
+flowchart TD
+    A["A — AnchorRoomKey valide ?"]
+    A -->|Oui| KEY["Clé = AnchorRoomKey"]
+    A -->|Non| KEYFB["Clé = fallback Inspector\n(défaut RoomB)"]
+
+    KEY --> B["B — Fetch GitHub\nanchors.json[clé]"]
+    KEYFB --> B
+
+    B -->|UUID reçu| META["Charger Meta Cloud"]
+    B -->|GitHub KO| LEG["C — Legacy UUID"]
+
+    LEG --> GM{"Rôle ?"}
+    GM -->|GM / Host| CLS["AnchorUuid\ndu GM\n(clientLocalSettings)"]
+    GM -->|Client connecté| NGO["UUID session NGO\n(partagé par le GM)"]
+    GM -->|Player anchor| PP["PlayerPrefs"]
+
+    CLS --> META
+    NGO --> META
+    PP --> META
+
+    LEG -->|Legacy vide| INS["D — Fallback Inspector\n(UUID compilé par salle)"]
+    INS --> META
+
+    META -->|OK| OK["Ancre assignée ✓"]
+    META -->|KO| RETRY["Retenter Legacy\npuis Inspector"]
+```
 
 ---
 
