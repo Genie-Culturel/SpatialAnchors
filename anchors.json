@@ -1,3 +1,4 @@
+
 {
   "RoomA": "6493c62c-ab8a-9d40-8b6b-30c7afbff014",
   "RoomB_Serviteur": "fac5d116-8b13-124f-2225-f4d8eb161021",
@@ -9,5 +10,6 @@
   "RoomDEV": "967d16f9-acae-7038-2844-3358d5de46d1",
   "RoomB_planta2": "fac5d116-8b13-124f-2225-f4d8eb161021",
   "RoomB": "fe2e2351-9f1f-2276-312d-6a1a043e2303",
+  "RoomC": "fe2e2351-9f1f-2276-312d-6a1a043e2303",
   "updatedAt": "2026-10-17T12:24:03+02:00"
 }
